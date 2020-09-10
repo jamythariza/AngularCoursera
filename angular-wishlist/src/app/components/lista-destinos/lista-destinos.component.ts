@@ -1,50 +1,43 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
-import { DestinoViaje} from './../../models/destino-viaje.model'
-import { DestinosApiClient } from '../../models/destinos-api-client.model';
-import { Store, State } from '@ngrx/store';
-import { AppState } from '../../app.module';
-import { ajax } from 'rxjs/ajax';
-import { ElegidoFavoritoAction, NuevoDestinoAction } from '../../models/destinos-viajes-state.model';
-import { isNgTemplate } from '@angular/compiler';
+import { Component, EventEmitter, Output, OnInit } from '@angular/core';
+import { DestinoViaje } from './../../models/destino-viaje.model';
+import { DestinosApiClient } from './../../models/destinos-api-client.model';
+import { Store } from '@ngrx/store';
+import {AppState} from './../../app.module';
 
 @Component({
   selector: 'app-lista-destinos',
   templateUrl: './lista-destinos.component.html',
   styleUrls: ['./lista-destinos.component.css'],
-  providers: [DestinosApiClient]
+  providers: [ DestinosApiClient ]
 })
 export class ListaDestinosComponent implements OnInit {
-  @Output() onItemAdded : EventEmitter<DestinoViaje>;
-  updates: string[]
-  all;
+  @Output() onItemAdded: EventEmitter<DestinoViaje>;
+  updates:string[];
 
-  constructor(public destinosApiClient:DestinosApiClient, private store: Store<AppState>) {
-    this.onItemAdded = new EventEmitter(); 
+  constructor(
+      private destinosApiClient:DestinosApiClient,
+      private store: Store<AppState>
+    ) {
+    this.onItemAdded = new EventEmitter();
     this.updates = [];
+  }
+
+  ngOnInit() {
     this.store.select(state => state.destinos.favorito)
-      .subscribe(d => {
-        if (d != null) {
-          this.updates.push('Se eligió: ' + d.nombre);
+      .subscribe(data => {
+        const f = data;
+        if (f != null) {
+          this.updates.push('Se eligió: ' + f.nombre);
         }
       });
-     store.select(State => State.destinos.items).subscribe(items => this.all = items);
-
-   }
-
-  ngOnInit(): void {
-
   }
 
-  agregado(d: DestinoViaje) {
+  agregado(d:DestinoViaje) {
     this.destinosApiClient.add(d);
-   this.onItemAdded = new EventEmitter(); 
+    this.onItemAdded.emit(d);
   }
 
-  elegido(e:DestinoViaje){
-    this.destinosApiClient.elegir(e);
-  }
-
-  getAll(){
-
+  elegido(d:DestinoViaje) {
+    this.destinosApiClient.elegir(d);
   }
 }

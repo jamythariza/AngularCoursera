@@ -1,10 +1,13 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule, InjectionToken, APP_INITIALIZER, Injectable } from '@angular/core';
-import { RouterModule,Routes} from '@angular/router'
-import { FormsModule, ReactiveFormsModule} from '@angular/forms';
-import { HttpClientModule, HttpClient, HttpHeaders, HttpRequest } from '@angular/common/http';
-import { Dexie } from 'dexie';
-import { TranslateService, TranslateLoader, TranslateModule} from '@ngx-translate/core';
+import { RouterModule, Routes } from '@angular/router';
+import {FormsModule, ReactiveFormsModule} from '@angular/forms';
+import { StoreModule as NgRxStoreModule, ActionReducerMap, Store } from '@ngrx/store';
+import { EffectsModule } from '@ngrx/effects';
+import { StoreDevtoolsModule } from '@ngrx/store-devtools';
+import Dexie from 'dexie';
+import {TranslateModule, TranslateLoader} from '@ngx-translate/core';
+import { NgxMapboxGLModule } from 'ngx-mapbox-gl';
 
 import { AppComponent } from './app.component';
 import { DestinoViajeComponent } from './components/destino-viaje/destino-viaje.component';
@@ -14,12 +17,6 @@ import { FormDestinoViajeComponent } from './components/form-destino-viaje/form-
 import { LoginComponent } from './components/login/login/login.component';
 import { ProtectedComponent} from './components/protected/protected/protected.component';
 import {UsuarioLogueadoGuard} from './guards/usuario-logueado/usuario-logueado.guard';
-
-
-//redux
-import { StoreModule as NgRxStoreModule, ActionReducerMap, Store } from '@ngrx/store';
-import { EffectsModule } from '@ngrx/effects';
-import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import {
   DestinosViajesState,
   intializeDestinosViajesState,
@@ -33,11 +30,14 @@ import { VuelosMainComponentComponent } from './components/vuelos/vuelos-main-co
 import { VuelosMasInfoComponentComponent } from './components/vuelos/vuelos-mas-info-component/vuelos-mas-info-component.component';
 import { VuelosDetalleComponentComponent } from './components/vuelos/vuelos-detalle-component/vuelos-detalle-component.component';
 import { ReservasModule } from './reservas/reservas.module';
+import { HttpClientModule, HttpClient, HttpHeaders, HttpRequest, HttpResponse } from '@angular/common/http';
 import { DestinoViaje } from './models/destino-viaje.model';
 import { Observable, from } from 'rxjs';
-import { flatMap } from 'rxjs/operators';
+import { map, flatMap } from 'rxjs/operators';
+import { EspiameDirective } from './espiame.directive';
+import { TrackearClickDirective } from './trackear-click.directive';
 
-//rutas anidadas o hijas
+// init routing
 export const childrenRoutesVuelos: Routes = [
   { path: '', redirectTo: 'main', pathMatch: 'full' },
   { path: 'main', component: VuelosMainComponentComponent },
@@ -45,24 +45,24 @@ export const childrenRoutesVuelos: Routes = [
   { path: ':id', component: VuelosDetalleComponentComponent },
 ];
 
-//routing
 const routes: Routes = [
-  {path: '', redirectTo: 'home', pathMatch: 'full'},
-  {path: 'home', component: ListaDestinosComponent},
-  {path: 'destino/:id', component:DestinoDetalleComponent},
-  {path: 'login', component: LoginComponent},
-  {
-    path: 'protected',
-    component: ProtectedComponent,
-    canActivate: [UsuarioLogueadoGuard]
-  },
-  {
-    path: 'vuelos',
-    component: VuelosComponentComponent,
-    canActivate: [ UsuarioLogueadoGuard ],
-    children: childrenRoutesVuelos
-  }
-];
+    { path: '', redirectTo: 'home', pathMatch: 'full' },
+    { path: 'home', component: ListaDestinosComponent },
+    { path: 'destino/:id', component: DestinoDetalleComponent },
+    { path: 'login', component: LoginComponent },
+    {
+      path: 'protected',
+      component: ProtectedComponent,
+      canActivate: [ UsuarioLogueadoGuard ]
+    },
+    {
+      path: 'vuelos',
+      component: VuelosComponentComponent,
+      canActivate: [ UsuarioLogueadoGuard ],
+      children: childrenRoutesVuelos
+    }
+  ];
+// end init routing
 
 // app config
 export interface AppConfig {
@@ -159,6 +159,11 @@ class TranslationLoader implements TranslateLoader {
                                       }).then((traducciones) => {
                                         return traducciones.map((t) => ({ [t.key]: t.value}));
                                       });
+    /*
+    return from(promise).pipe(
+      map((traducciones) => traducciones.map((t) => { [t.key]: t.value}))
+    );
+    */
    return from(promise).pipe(flatMap((elems) => from(elems)));
   }
 }
@@ -166,8 +171,6 @@ class TranslationLoader implements TranslateLoader {
 function HttpLoaderFactory(http: HttpClient) {
   return new TranslationLoader(http);
 }
-
-
 
 @NgModule({
   declarations: [
@@ -181,30 +184,36 @@ function HttpLoaderFactory(http: HttpClient) {
     VuelosComponentComponent,
     VuelosMainComponentComponent,
     VuelosMasInfoComponentComponent,
-    VuelosDetalleComponentComponent
+    VuelosDetalleComponentComponent,
+    EspiameDirective,
+    TrackearClickDirective,
   ],
   imports: [
     BrowserModule,
     FormsModule,
     ReactiveFormsModule,
-    HttpClientModule,
     RouterModule.forRoot(routes),
+    HttpClientModule,
     NgRxStoreModule.forRoot(reducers, { initialState: reducersInitialState,      
       runtimeChecks:{
         strictStateImmutability: false,
         strictActionImmutability: false,
       } 
       }),
-      EffectsModule.forRoot([DestinosViajesEffects]),
-      StoreDevtoolsModule.instrument(),
-      ReservasModule,
-      TranslateModule.forRoot({
-        loader: {
-            provide: TranslateLoader,
-            useFactory: (HttpLoaderFactory),
-            deps: [HttpClient]
-        }
-      })
+    EffectsModule.forRoot([DestinosViajesEffects]),
+    StoreDevtoolsModule.instrument(),
+    ReservasModule,
+    TranslateModule.forRoot({
+      loader: {
+          provide: TranslateLoader,
+          useFactory: (HttpLoaderFactory),
+          deps: [HttpClient]
+      }
+    }),
+    NgxMapboxGLModule.withConfig({
+      accessToken: 'TOKEN', // Optional, can also be set per map (accessToken input of mgl-map)
+      geocoderAccessToken: 'TOKEN' // Optional, specify if different from the map access token, can also be set per mgl-geocoder (accessToken input of mgl-geocoder)
+    })
   ],
   providers: [
     AuthService,
@@ -216,4 +225,5 @@ function HttpLoaderFactory(http: HttpClient) {
   ],
   bootstrap: [AppComponent]
 })
-export class AppModule { }
+export class AppModule {
+}
